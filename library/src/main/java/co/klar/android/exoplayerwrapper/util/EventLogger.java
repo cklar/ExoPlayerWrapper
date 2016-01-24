@@ -10,6 +10,7 @@ import com.google.android.exoplayer.TimeRange;
 import com.google.android.exoplayer.audio.AudioTrack;
 import com.google.android.exoplayer.chunk.Format;
 import com.google.android.exoplayer.util.VerboseLogUtil;
+
 import co.klar.android.exoplayerwrapper.extractor.ExoPlayerWrapper;
 
 import java.io.IOException;
@@ -24,6 +25,7 @@ public class EventLogger implements ExoPlayerWrapper.Listener, ExoPlayerWrapper.
 
     private static final String TAG = "EventLogger";
     private static final NumberFormat TIME_FORMAT;
+
     static {
         TIME_FORMAT = NumberFormat.getInstance(Locale.US);
         TIME_FORMAT.setMinimumFractionDigits(2);
@@ -145,6 +147,12 @@ public class EventLogger implements ExoPlayerWrapper.Listener, ExoPlayerWrapper.
     }
 
     @Override
+    public void onAudioTrackUnderrun(int bufferSize, long bufferSizeMs, long elapsedSinceLastFeedMs) {
+        printInternalError("audioTrackUnderrun [" + bufferSize + ", " + bufferSizeMs + ", "
+                + elapsedSinceLastFeedMs + "]", null);
+    }
+
+    @Override
     public void onCryptoError(MediaCodec.CryptoException e) {
         printInternalError("cryptoError", e);
     }
@@ -156,7 +164,7 @@ public class EventLogger implements ExoPlayerWrapper.Listener, ExoPlayerWrapper.
     }
 
     @Override
-    public void onAvailableRangeChanged(TimeRange availableRange) {
+    public void onAvailableRangeChanged(int sourceId, TimeRange availableRange) {
         availableRangeValuesUs = availableRange.getCurrentBoundsUs(availableRangeValuesUs);
         Log.d(TAG, "availableRange [" + availableRange.isStatic() + ", " + availableRangeValuesUs[0]
                 + ", " + availableRangeValuesUs[1] + "]");

@@ -93,6 +93,8 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
 
         void onAudioTrackWriteError(AudioTrack.WriteException e);
 
+        void onAudioTrackUnderrun(int bufferSize, long bufferSizeMs, long elapsedSinceLastFeedMs);
+
         void onDecoderInitializationError(MediaCodecTrackRenderer.DecoderInitializationException e);
 
         void onCryptoError(MediaCodec.CryptoException e);
@@ -123,7 +125,7 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
         void onDecoderInitialized(String decoderName, long elapsedRealtimeMs,
                                   long initializationDurationMs);
 
-        void onAvailableRangeChanged(TimeRange availableRange);
+        void onAvailableRangeChanged(int sourceId, TimeRange availableRange);
     }
 
     /**
@@ -162,7 +164,7 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
     private static final int RENDERER_BUILDING_STATE_BUILDING = 2;
     private static final int RENDERER_BUILDING_STATE_BUILT = 3;
 
-    private final RendererBuilder rendererBuilder;
+    private RendererBuilder rendererBuilder;
     private final ExoPlayer player;
     private final PlayerControl playerControl;
     private final Handler mainHandler;
@@ -369,6 +371,12 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
         return playerState;
     }
 
+    public void replaceRenderBuilder(RendererBuilder rendererBuilder){
+        this.rendererBuilder = rendererBuilder;
+        rendererBuildingState = RENDERER_BUILDING_STATE_IDLE;
+    }
+
+
     @Override
     public Format getFormat() {
         return videoFormat;
@@ -492,6 +500,13 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
     }
 
     @Override
+    public void onAudioTrackUnderrun(int bufferSize, long bufferSizeMs, long elapsedSinceLastFeedMs) {
+        if (internalErrorListener != null) {
+            internalErrorListener.onAudioTrackUnderrun(bufferSize, bufferSizeMs, elapsedSinceLastFeedMs);
+        }
+    }
+
+    @Override
     public void onCryptoError(MediaCodec.CryptoException e) {
         if (internalErrorListener != null) {
             internalErrorListener.onCryptoError(e);
@@ -528,9 +543,9 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
     }
 
     @Override
-    public void onAvailableRangeChanged(TimeRange availableRange) {
+    public void onAvailableRangeChanged(int sourceId, TimeRange availableRange) {
         if (infoListener != null) {
-            infoListener.onAvailableRangeChanged(availableRange);
+            infoListener.onAvailableRangeChanged(sourceId, availableRange);
         }
     }
 

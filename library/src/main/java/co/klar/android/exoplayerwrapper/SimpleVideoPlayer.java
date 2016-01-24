@@ -61,7 +61,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
     }
 
     private Activity activity;
-    private final Video video;
+    private Video video;
     private boolean autoplay;
 
     private EventLogger eventLogger;
@@ -216,29 +216,46 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
 
     private void preparePlayer(boolean playWhenReady) {
         if (wrapper == null) {
-            wrapper = new ExoPlayerWrapper(getRendererBuilder());
-            wrapper.addListener(this);
-            wrapper.setCaptionListener(this);
-            wrapper.setMetadataListener(this);
-            wrapper.seekTo(playerPosition);
-            playerNeedsPrepare = true;
-            mediaController.setMediaPlayer(wrapper.getPlayerControl());
-            mediaController.setEnabled(true);
-            eventLogger = new EventLogger();
-            eventLogger.startSession();
-            wrapper.addListener(eventLogger);
-            wrapper.setInfoListener(eventLogger);
-            wrapper.setInternalErrorListener(eventLogger);
+            createNewWrapper();
         }
+        wrapper.setSurface(surfaceView.getHolder().getSurface());
+        wrapper.setPlayWhenReady(playWhenReady);
+    }
+
+    private void createNewWrapper() {
+        wrapper = new ExoPlayerWrapper(getRendererBuilder());
+        wrapper.addListener(this);
+        wrapper.setCaptionListener(this);
+        wrapper.setMetadataListener(this);
+        wrapper.seekTo(playerPosition);
+        playerNeedsPrepare = true;
+        mediaController.setMediaPlayer(wrapper.getPlayerControl());
+        mediaController.setEnabled(true);
+        eventLogger = new EventLogger();
+        eventLogger.startSession();
+        wrapper.addListener(eventLogger);
+        wrapper.setInfoListener(eventLogger);
+        wrapper.setInternalErrorListener(eventLogger);
+        if (playerNeedsPrepare) {
+            wrapper.prepare();
+            playerNeedsPrepare = false;
+        }
+    }
+
+    public void changeVideo(Video video, long playerPosition, boolean playWhenReady){
+        this.video = video;
+        this.playerPosition = playerPosition;
+        createNewWrapper();
         if (playerNeedsPrepare) {
             wrapper.prepare();
             playerNeedsPrepare = false;
         }
         wrapper.setSurface(surfaceView.getHolder().getSurface());
         wrapper.setPlayWhenReady(playWhenReady);
+
     }
 
-    private void releasePlayer() {
+    public void releasePlayer() {
         if (wrapper != null) {
             playerPosition = wrapper.getCurrentPosition();
             wrapper.release();
@@ -246,6 +263,30 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
             eventLogger.endSession();
             eventLogger = null;
         }
+    }
+
+    /**
+     * Pause video playback.
+     */
+    public void pause() {
+        // Set the autoplay for the video surface layer in case the surface hasn't been created yet.
+        // This way, when the surface is created, it won't start playing.
+        wrapper.getPlayerControl().pause();
+    }
+    /**
+     * Pause video playback.
+     */
+    public void play() {
+        // Set the autoplay for the video surface layer in case the surface hasn't been created yet.
+        // This way, when the surface is created, it won't start playing.
+        wrapper.setPlayWhenReady(false);
+    }
+
+    /**
+     * Returns the current playback position in milliseconds.
+     */
+    public long getCurrentPosition() {
+        return wrapper.getCurrentPosition();
     }
 
     // ExoplayerWrapper.Listener implementation

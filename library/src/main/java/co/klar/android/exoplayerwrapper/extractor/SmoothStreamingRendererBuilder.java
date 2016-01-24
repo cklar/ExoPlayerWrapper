@@ -1,12 +1,14 @@
 package co.klar.android.exoplayerwrapper.extractor;
 
 import android.content.Context;
+import android.media.AudioManager;
 import android.media.MediaCodec;
 import android.os.Handler;
 
 import com.google.android.exoplayer.DefaultLoadControl;
 import com.google.android.exoplayer.LoadControl;
 import com.google.android.exoplayer.MediaCodecAudioTrackRenderer;
+import com.google.android.exoplayer.MediaCodecSelector;
 import com.google.android.exoplayer.MediaCodecVideoTrackRenderer;
 import com.google.android.exoplayer.TrackRenderer;
 import com.google.android.exoplayer.audio.AudioCapabilities;
@@ -141,30 +143,31 @@ public class SmoothStreamingRendererBuilder implements ExoPlayerWrapper.Renderer
             // Build the video renderer.
             DataSource videoDataSource = new DefaultUriDataSource(context, bandwidthMeter, userAgent);
             ChunkSource videoChunkSource = new SmoothStreamingChunkSource(manifestFetcher,
-                    new DefaultSmoothStreamingTrackSelector(context, SmoothStreamingManifest.StreamElement.TYPE_VIDEO),
+                    DefaultSmoothStreamingTrackSelector.newVideoInstance(context, true, false),
                     videoDataSource, new FormatEvaluator.AdaptiveEvaluator(bandwidthMeter), LIVE_EDGE_LATENCY_MS);
             ChunkSampleSource videoSampleSource = new ChunkSampleSource(videoChunkSource, loadControl,
                     VIDEO_BUFFER_SEGMENTS * BUFFER_SEGMENT_SIZE, mainHandler, player,
                     ExoPlayerWrapper.TYPE_VIDEO);
-            TrackRenderer videoRenderer = new MediaCodecVideoTrackRenderer(videoSampleSource,
-                    drmSessionManager, true, MediaCodec.VIDEO_SCALING_MODE_SCALE_TO_FIT, 5000, null,
-                    mainHandler, player, 50);
+            TrackRenderer videoRenderer = new MediaCodecVideoTrackRenderer(context, videoSampleSource,
+                    MediaCodecSelector.DEFAULT, MediaCodec.VIDEO_SCALING_MODE_SCALE_TO_FIT, 5000,
+                    drmSessionManager, true, mainHandler, player, 50);
 
             // Build the audio renderer.
             DataSource audioDataSource = new DefaultUriDataSource(context, bandwidthMeter, userAgent);
             ChunkSource audioChunkSource = new SmoothStreamingChunkSource(manifestFetcher,
-                    new DefaultSmoothStreamingTrackSelector(context, SmoothStreamingManifest.StreamElement.TYPE_AUDIO),
+                    DefaultSmoothStreamingTrackSelector.newAudioInstance(),
                     audioDataSource, null, LIVE_EDGE_LATENCY_MS);
             ChunkSampleSource audioSampleSource = new ChunkSampleSource(audioChunkSource, loadControl,
                     AUDIO_BUFFER_SEGMENTS * BUFFER_SEGMENT_SIZE, mainHandler, player,
                     ExoPlayerWrapper.TYPE_AUDIO);
             TrackRenderer audioRenderer = new MediaCodecAudioTrackRenderer(audioSampleSource,
-                    drmSessionManager, true, mainHandler, player, AudioCapabilities.getCapabilities(context));
+                    MediaCodecSelector.DEFAULT, drmSessionManager, true, mainHandler, player,
+                    AudioCapabilities.getCapabilities(context), AudioManager.STREAM_MUSIC);
 
             // Build the text renderer.
             DataSource textDataSource = new DefaultUriDataSource(context, bandwidthMeter, userAgent);
             ChunkSource textChunkSource = new SmoothStreamingChunkSource(manifestFetcher,
-                    new DefaultSmoothStreamingTrackSelector(context, SmoothStreamingManifest.StreamElement.TYPE_TEXT),
+                    DefaultSmoothStreamingTrackSelector.newTextInstance(),
                     textDataSource, null, LIVE_EDGE_LATENCY_MS);
             ChunkSampleSource textSampleSource = new ChunkSampleSource(textChunkSource, loadControl,
                     TEXT_BUFFER_SEGMENTS * BUFFER_SEGMENT_SIZE, mainHandler, player,

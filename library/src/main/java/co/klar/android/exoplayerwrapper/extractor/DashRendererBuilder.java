@@ -1,6 +1,7 @@
 package co.klar.android.exoplayerwrapper.extractor;
 
 import android.content.Context;
+import android.media.AudioManager;
 import android.media.MediaCodec;
 import android.os.Handler;
 import android.util.Log;
@@ -8,20 +9,22 @@ import android.util.Log;
 import com.google.android.exoplayer.DefaultLoadControl;
 import com.google.android.exoplayer.LoadControl;
 import com.google.android.exoplayer.MediaCodecAudioTrackRenderer;
+import com.google.android.exoplayer.MediaCodecSelector;
 import com.google.android.exoplayer.MediaCodecVideoTrackRenderer;
 import com.google.android.exoplayer.TrackRenderer;
 import com.google.android.exoplayer.audio.AudioCapabilities;
 import com.google.android.exoplayer.chunk.ChunkSampleSource;
 import com.google.android.exoplayer.chunk.ChunkSource;
 import com.google.android.exoplayer.chunk.FormatEvaluator;
+import com.google.android.exoplayer.dash.mpd.UtcTimingElement;
+import com.google.android.exoplayer.dash.mpd.UtcTimingElementResolver;
+import com.google.android.exoplayer.dash.mpd.UtcTimingElementResolver.UtcTimingCallback;
 import com.google.android.exoplayer.dash.DashChunkSource;
 import com.google.android.exoplayer.dash.DefaultDashTrackSelector;
 import com.google.android.exoplayer.dash.mpd.AdaptationSet;
 import com.google.android.exoplayer.dash.mpd.MediaPresentationDescription;
 import com.google.android.exoplayer.dash.mpd.MediaPresentationDescriptionParser;
 import com.google.android.exoplayer.dash.mpd.Period;
-import com.google.android.exoplayer.dash.mpd.UtcTimingElement;
-import com.google.android.exoplayer.dash.mpd.UtcTimingElementResolver;
 import com.google.android.exoplayer.drm.MediaDrmCallback;
 import com.google.android.exoplayer.drm.StreamingDrmSessionManager;
 import com.google.android.exoplayer.drm.UnsupportedDrmException;
@@ -83,7 +86,7 @@ public class DashRendererBuilder implements ExoPlayerWrapper.RendererBuilder {
     }
 
     private static final class AsyncRendererBuilder
-            implements ManifestFetcher.ManifestCallback<MediaPresentationDescription>, UtcTimingElementResolver.UtcTimingCallback {
+            implements ManifestFetcher.ManifestCallback<MediaPresentationDescription>, UtcTimingCallback {
 
         private final Context context;
         private final String userAgent;
@@ -198,30 +201,31 @@ public class DashRendererBuilder implements ExoPlayerWrapper.RendererBuilder {
             ChunkSource videoChunkSource = new DashChunkSource(manifestFetcher,
                     DefaultDashTrackSelector.newVideoInstance(context, true, filterHdContent),
                     videoDataSource, new FormatEvaluator.AdaptiveEvaluator(bandwidthMeter), LIVE_EDGE_LATENCY_MS,
-                    elapsedRealtimeOffset, mainHandler, player);
+                    elapsedRealtimeOffset, mainHandler, player, ExoPlayerWrapper.TYPE_VIDEO);
             ChunkSampleSource videoSampleSource = new ChunkSampleSource(videoChunkSource, loadControl,
                     VIDEO_BUFFER_SEGMENTS * BUFFER_SEGMENT_SIZE, mainHandler, player,
                     ExoPlayerWrapper.TYPE_VIDEO);
-            TrackRenderer videoRenderer = new MediaCodecVideoTrackRenderer(videoSampleSource,
-                    drmSessionManager, true, MediaCodec.VIDEO_SCALING_MODE_SCALE_TO_FIT, 5000, null,
-                    mainHandler, player, 50);
+            TrackRenderer videoRenderer = new MediaCodecVideoTrackRenderer(context, videoSampleSource,
+                    MediaCodecSelector.DEFAULT, MediaCodec.VIDEO_SCALING_MODE_SCALE_TO_FIT, 5000,
+                    drmSessionManager, true, mainHandler, player, 50);
 
             // Build the audio renderer.
             DataSource audioDataSource = new DefaultUriDataSource(context, bandwidthMeter, userAgent);
             ChunkSource audioChunkSource = new DashChunkSource(manifestFetcher,
                     DefaultDashTrackSelector.newAudioInstance(), audioDataSource, null, LIVE_EDGE_LATENCY_MS,
-                    elapsedRealtimeOffset, mainHandler, player);
+                    elapsedRealtimeOffset, mainHandler, player, ExoPlayerWrapper.TYPE_AUDIO);
             ChunkSampleSource audioSampleSource = new ChunkSampleSource(audioChunkSource, loadControl,
                     AUDIO_BUFFER_SEGMENTS * BUFFER_SEGMENT_SIZE, mainHandler, player,
                     ExoPlayerWrapper.TYPE_AUDIO);
             TrackRenderer audioRenderer = new MediaCodecAudioTrackRenderer(audioSampleSource,
-                    drmSessionManager, true, mainHandler, player, AudioCapabilities.getCapabilities(context));
+                    MediaCodecSelector.DEFAULT, drmSessionManager, true, mainHandler, player,
+                    AudioCapabilities.getCapabilities(context), AudioManager.STREAM_MUSIC);
 
             // Build the text renderer.
             DataSource textDataSource = new DefaultUriDataSource(context, bandwidthMeter, userAgent);
             ChunkSource textChunkSource = new DashChunkSource(manifestFetcher,
                     DefaultDashTrackSelector.newTextInstance(), textDataSource, null, LIVE_EDGE_LATENCY_MS,
-                    elapsedRealtimeOffset, mainHandler, player);
+                    elapsedRealtimeOffset, mainHandler, player, ExoPlayerWrapper.TYPE_TEXT);
             ChunkSampleSource textSampleSource = new ChunkSampleSource(textChunkSource, loadControl,
                     TEXT_BUFFER_SEGMENTS * BUFFER_SEGMENT_SIZE, mainHandler, player,
                     ExoPlayerWrapper.TYPE_TEXT);
