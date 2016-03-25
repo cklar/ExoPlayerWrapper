@@ -11,6 +11,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.accessibility.CaptioningManager;
 import android.widget.FrameLayout;
 import android.widget.MediaController;
@@ -21,12 +22,14 @@ import com.google.android.exoplayer.ExoPlayer;
 import com.google.android.exoplayer.audio.AudioCapabilities;
 import com.google.android.exoplayer.audio.AudioCapabilitiesReceiver;
 import com.google.android.exoplayer.drm.UnsupportedDrmException;
-import com.google.android.exoplayer.metadata.GeobMetadata;
-import com.google.android.exoplayer.metadata.PrivMetadata;
-import com.google.android.exoplayer.metadata.TxxxMetadata;
+import com.google.android.exoplayer.metadata.id3.GeobFrame;
+import com.google.android.exoplayer.metadata.id3.Id3Frame;
+import com.google.android.exoplayer.metadata.id3.PrivFrame;
+import com.google.android.exoplayer.metadata.id3.TxxxFrame;
 import com.google.android.exoplayer.text.CaptionStyleCompat;
 import com.google.android.exoplayer.text.Cue;
 import com.google.android.exoplayer.text.SubtitleLayout;
+import com.google.android.exoplayer.util.PlayerControl;
 import com.google.android.exoplayer.util.Util;
 
 import co.klar.android.exoplayerwrapper.util.EventLogger;
@@ -65,7 +68,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
     private boolean autoplay;
 
     private EventLogger eventLogger;
-    private MediaController mediaController;
+    private VideoControllerView mediaController;
     private View shutterView;
     private AspectRatioFrameLayout videoFrame;
     private SurfaceView surfaceView;
@@ -103,7 +106,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
 
     private void bindView(FrameLayout oldRoot) {
         @SuppressLint("InflateParams")
-        View root = activity.getLayoutInflater().inflate(R.layout.player_view_layout, null);
+        ViewGroup root = (ViewGroup) activity.getLayoutInflater().inflate(R.layout.player_view_layout, null);
         ViewGroupUtils.replaceView(oldRoot, root);
 
         root.setOnTouchListener(new View.OnTouchListener() {
@@ -138,7 +141,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
 
         subtitleLayout = (SubtitleLayout) root.findViewById(R.id.subtitles);
 
-        mediaController = new MediaController(activity);
+        mediaController = new VideoControllerView(activity, false);
         mediaController.setAnchorView(root);
 
 
@@ -152,7 +155,9 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
 
     // old Activity lifecycle Must be called in ExoplayerWrapper#activity lifecycle
 
-
+    /**
+     * Lifecycle Method
+     */
     public void onResume() {
         configureSubtitleView();
 
@@ -165,6 +170,9 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
         }
     }
 
+    /**
+     * Lifecycle Method
+     */
     public void onPause() {
         if (!enableBackgroundAudio) {
             releasePlayer();
@@ -174,6 +182,9 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
         shutterView.setVisibility(View.VISIBLE);
     }
 
+    /**
+     * Lifecycle Method
+     */
     public void onDestroy() {
         audioCapabilitiesReceiver.unregister();
         releasePlayer();
@@ -368,24 +379,21 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
     // ExoplayerWrapper.MetadataListener implementation
 
     @Override
-    public void onId3Metadata(Map<String, Object> metadata) {
-        for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-            if (TxxxMetadata.TYPE.equals(entry.getKey())) {
-                TxxxMetadata txxxMetadata = (TxxxMetadata) entry.getValue();
-                Log.i(TAG, String.format("ID3 TimedMetadata %s: description=%s, value=%s",
-                        TxxxMetadata.TYPE, txxxMetadata.description, txxxMetadata.value));
-            } else if (PrivMetadata.TYPE.equals(entry.getKey())) {
-                PrivMetadata privMetadata = (PrivMetadata) entry.getValue();
-                Log.i(TAG, String.format("ID3 TimedMetadata %s: owner=%s",
-                        PrivMetadata.TYPE, privMetadata.owner));
-            } else if (GeobMetadata.TYPE.equals(entry.getKey())) {
-                GeobMetadata geobMetadata = (GeobMetadata) entry.getValue();
-                Log.i(TAG, String.format("ID3 TimedMetadata %s: mimeType=%s, filename=%s, " +
-                                "description=%s",
-                        GeobMetadata.TYPE, geobMetadata.mimeType, geobMetadata.filename,
-                        geobMetadata.description));
+    public void onId3Metadata(List<Id3Frame> id3Frames) {
+        for (Id3Frame id3Frame : id3Frames) {
+            if (id3Frame instanceof TxxxFrame) {
+                TxxxFrame txxxFrame = (TxxxFrame) id3Frame;
+                Log.i(TAG, String.format("ID3 TimedMetadata %s: description=%s, value=%s", txxxFrame.id,
+                        txxxFrame.description, txxxFrame.value));
+            } else if (id3Frame instanceof PrivFrame) {
+                PrivFrame privFrame = (PrivFrame) id3Frame;
+                Log.i(TAG, String.format("ID3 TimedMetadata %s: owner=%s", privFrame.id, privFrame.owner));
+            } else if (id3Frame instanceof GeobFrame) {
+                GeobFrame geobFrame = (GeobFrame) id3Frame;
+                Log.i(TAG, String.format("ID3 TimedMetadata %s: mimeType=%s, filename=%s, description=%s",
+                        geobFrame.id, geobFrame.mimeType, geobFrame.filename, geobFrame.description));
             } else {
-                Log.i(TAG, String.format("ID3 TimedMetadata %s", entry.getKey()));
+                Log.i(TAG, String.format("ID3 TimedMetadata %s", id3Frame.id));
             }
         }
     }
