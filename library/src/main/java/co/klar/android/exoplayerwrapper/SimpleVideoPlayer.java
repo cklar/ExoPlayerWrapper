@@ -14,7 +14,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.CaptioningManager;
 import android.widget.FrameLayout;
-import android.widget.MediaController;
 import android.widget.Toast;
 
 import com.google.android.exoplayer.AspectRatioFrameLayout;
@@ -29,22 +28,21 @@ import com.google.android.exoplayer.metadata.id3.TxxxFrame;
 import com.google.android.exoplayer.text.CaptionStyleCompat;
 import com.google.android.exoplayer.text.Cue;
 import com.google.android.exoplayer.text.SubtitleLayout;
-import com.google.android.exoplayer.util.PlayerControl;
 import com.google.android.exoplayer.util.Util;
-
-import co.klar.android.exoplayerwrapper.util.EventLogger;
-import co.klar.android.exoplayerwrapper.util.ViewGroupUtils;
-import co.klar.android.exoplayerwrapper.extractor.DashRendererBuilder;
-import co.klar.android.exoplayerwrapper.extractor.ExoPlayerWrapper;
-import co.klar.android.exoplayerwrapper.extractor.ExtractorRendererBuilder;
-import co.klar.android.exoplayerwrapper.extractor.HlsRendererBuilder;
-import co.klar.android.exoplayerwrapper.extractor.SmoothStreamingRendererBuilder;
 
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.util.List;
-import java.util.Map;
+
+import co.klar.android.exoplayerwrapper.extractor.DashRendererBuilder;
+import co.klar.android.exoplayerwrapper.extractor.ExoPlayerWrapper;
+import co.klar.android.exoplayerwrapper.extractor.ExtractorRendererBuilder;
+import co.klar.android.exoplayerwrapper.extractor.HlsRendererBuilder;
+import co.klar.android.exoplayerwrapper.extractor.SmoothStreamingRendererBuilder;
+import co.klar.android.exoplayerwrapper.util.EventLogger;
+import co.klar.android.exoplayerwrapper.util.ViewGroupUtils;
+import co.klar.android.exoplayerwrapper.widget.VideoControllerView;
 
 /**
  * Created by cklar on 23.09.15.
@@ -253,7 +251,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
         }
     }
 
-    public void changeVideo(Video video, long playerPosition, boolean playWhenReady){
+    public void changeVideo(Video video, long playerPosition, boolean playWhenReady) {
         this.video = video;
         this.playerPosition = playerPosition;
         createNewWrapper();
@@ -284,6 +282,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
         // This way, when the surface is created, it won't start playing.
         wrapper.getPlayerControl().pause();
     }
+
     /**
      * Pause video playback.
      */

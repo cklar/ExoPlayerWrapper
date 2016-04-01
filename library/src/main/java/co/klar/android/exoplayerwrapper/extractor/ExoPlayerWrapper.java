@@ -178,6 +178,7 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
 
     private Surface surface;
     private TrackRenderer videoRenderer;
+    private TrackRenderer audioRenderer;
     private CodecCounters codecCounters;
     private Format videoFormat;
     private int videoTrackToRestore;
@@ -322,6 +323,7 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
         }
         // Complete preparation.
         this.videoRenderer = renderers[TYPE_VIDEO];
+        this.audioRenderer = renderers[TYPE_AUDIO];
         this.codecCounters = videoRenderer instanceof MediaCodecTrackRenderer
                 ? ((MediaCodecTrackRenderer) videoRenderer).codecCounters
                 : renderers[TYPE_AUDIO] instanceof MediaCodecTrackRenderer
@@ -356,6 +358,15 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
         player.seekTo(positionMs);
     }
 
+    public void setVolume(float volume) {
+        player.sendMessage(audioRenderer, MediaCodecAudioTrackRenderer.MSG_SET_VOLUME, volume);
+    }
+
+    public void stop() {
+        player.setPlayWhenReady(false);
+        player.stop();
+    }
+
     public void release() {
         rendererBuilder.cancel();
         rendererBuildingState = RENDERER_BUILDING_STATE_IDLE;
@@ -380,6 +391,7 @@ public class ExoPlayerWrapper implements ExoPlayer.Listener, ChunkSampleSource.E
     public void replaceRenderBuilder(RendererBuilder rendererBuilder){
         this.rendererBuilder = rendererBuilder;
         rendererBuildingState = RENDERER_BUILDING_STATE_IDLE;
+        prepare();
     }
 
 

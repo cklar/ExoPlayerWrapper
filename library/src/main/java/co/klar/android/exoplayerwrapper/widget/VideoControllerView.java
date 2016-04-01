@@ -1,6 +1,9 @@
-package co.klar.android.exoplayerwrapper;
+package co.klar.android.exoplayerwrapper.widget;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
@@ -13,6 +16,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.MediaController;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
@@ -23,6 +27,9 @@ import com.google.android.exoplayer.util.PlayerControl;
 import java.lang.ref.WeakReference;
 import java.util.Formatter;
 import java.util.Locale;
+
+import co.klar.android.exoplayerwrapper.R;
+import timber.log.Timber;
 
 /**
  * A view containing controls for a MediaPlayer. Typically contains the
@@ -56,7 +63,7 @@ public class VideoControllerView extends FrameLayout {
     private static final String TAG = "VideoControllerView";
 
     private PlayerControl       mPlayer;
-    private Context             mContext;
+    private Activity            hostActivity;
     private ViewGroup           mAnchor;
     private View                mRoot;
     private ProgressBar         mProgress;
@@ -80,26 +87,29 @@ public class VideoControllerView extends FrameLayout {
     private ImageButton         mFullscreenButton;
     private Handler             mHandler = new MessageHandler(this);
 
-    public VideoControllerView(Context context, AttributeSet attrs) {
-        super(context, attrs);
+    @Deprecated
+    private boolean isFullscreen;
+
+    public VideoControllerView(Activity hostActivity, AttributeSet attrs) {
+        super(hostActivity, attrs);
         mRoot = null;
-        mContext = context;
+        this.hostActivity = hostActivity;
         mUseFastForward = true;
         mFromXml = true;
 
         Log.i(TAG, TAG);
     }
 
-    public VideoControllerView(Context context, boolean useFastForward) {
-        super(context);
-        mContext = context;
+    public VideoControllerView(Activity hostActivity, boolean useFastForward) {
+        super(hostActivity);
+        this.hostActivity = hostActivity;
         mUseFastForward = useFastForward;
 
         Log.i(TAG, TAG);
     }
 
-    public VideoControllerView(Context context) {
-        this(context, true);
+    public VideoControllerView(Activity hostActivity) {
+        this(hostActivity, true);
 
         Log.i(TAG, TAG);
     }
@@ -114,7 +124,7 @@ public class VideoControllerView extends FrameLayout {
     public void setMediaPlayer(PlayerControl player) {
         mPlayer = player;
         updatePausePlay();
-//        updateFullScreen();
+        updateFullScreen();
     }
 
     /**
@@ -142,8 +152,9 @@ public class VideoControllerView extends FrameLayout {
      * @hide This doesn't work as advertised
      */
     protected View makeControllerView() {
-        LayoutInflater inflate = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        mRoot = inflate.inflate(R.layout.media_controller, null);
+        LayoutInflater inflate = (LayoutInflater) hostActivity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+//        mRoot = inflate.inflate(R.layout.media_controller, null);
+        mRoot = inflate.inflate(R.layout.video_controls_overlay, null);
 
         initControllerView(mRoot);
 
@@ -424,7 +435,7 @@ public class VideoControllerView extends FrameLayout {
 
     private View.OnClickListener mFullscreenListener = new View.OnClickListener() {
         public void onClick(View v) {
-            doToggleFullscreen();
+            onClickFullscreen();
             show(sDefaultTimeout);
         }
     };
@@ -445,13 +456,16 @@ public class VideoControllerView extends FrameLayout {
         if (mRoot == null || mFullscreenButton == null || mPlayer == null) {
             return;
         }
+//        TintResources tintResources = new TintResources(TintContextWrapper.wrap(hostActivity), getResources());
 
-     /*   if (mPlayer.isFullScreen()) {
-            mFullscreenButton.setImageResource(android.R.drawable.presence_busy);
+        if (isFullscreen()) {
+//            mFullscreenButton.setImageDrawable(tintResources.getDrawable(R.drawable.ic_fullscreen_exit));
+            mFullscreenButton.setImageResource(R.drawable.ic_fullscreen_exit);
         }
         else {
-            mFullscreenButton.setImageResource(android.R.drawable.presence_away);
-        }*/
+            mFullscreenButton.setImageResource(R.drawable.ic_fullscreen);
+//            mFullscreenButton.setImageDrawable(tintResources.getDrawable(R.drawable.ic_fullscreen));
+        }
     }
 
     private void doPauseResume() {
@@ -467,12 +481,41 @@ public class VideoControllerView extends FrameLayout {
         updatePausePlay();
     }
 
-    private void doToggleFullscreen() {
+    private void onClickFullscreen() {
         if (mPlayer == null) {
             return;
         }
 
-//        mPlayer.toggleFullScreen();
+        if (isFullscreen()){
+            hostActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        } else {
+            hostActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        }
+        Timber.d("onClickFullscreen isFullScreen(): " + isFullscreen());
+        doToggleFullscreen();
+    }
+
+    private void doToggleFullscreen(){
+        updateFullScreen();
+    }
+
+    @Override
+    protected void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            Timber.d("onConfigurationChanged: ORIENTATION_LANDSCAPE");
+        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT){
+            Timber.d("onConfigurationChanged: ORIENTATION_PORTRAIT");
+        }else {
+            return;
+        }
+        Timber.d("onConfigurationChanged isFullScreen(): " + isFullscreen());
+        doToggleFullscreen();
+    }
+
+    private boolean isFullscreen(){
+        return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+
     }
 
     // There are two scenarios that can trigger the seekbar listener to trigger:
@@ -614,19 +657,16 @@ public class VideoControllerView extends FrameLayout {
         }
     }
 
-    public interface MediaPlayerControl {
-        void    start();
-        void    pause();
-        int     getDuration();
-        int     getCurrentPosition();
-        void    seekTo(int pos);
-        boolean isPlaying();
-        int     getBufferPercentage();
-        boolean canPause();
-        boolean canSeekBackward();
-        boolean canSeekForward();
+    public interface MediaPlayerControl extends MediaController.MediaPlayerControl{
         boolean isFullScreen();
         void    toggleFullScreen();
+
+        /**
+         * Get the audio session id for the player used by this VideoView. This can be used to
+         * apply audio effects to the audio track of a video.
+         * @return The audio session, or 0 if there was an error.
+         */
+        int     getAudioSessionId();
     }
 
     private static class MessageHandler extends Handler {
