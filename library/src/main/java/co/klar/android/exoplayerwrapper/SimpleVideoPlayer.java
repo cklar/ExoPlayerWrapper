@@ -11,7 +11,6 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,7 +18,6 @@ import android.view.accessibility.CaptioningManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
-import com.google.android.exoplayer.AspectRatioFrameLayout;
 import com.google.android.exoplayer.ExoPlayer;
 import com.google.android.exoplayer.audio.AudioCapabilities;
 import com.google.android.exoplayer.audio.AudioCapabilitiesReceiver;
@@ -149,7 +147,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
         mediaController = new VideoControllerView(activity, false);
         mediaController.setAnchorView(root);
 
-        exoVideoTextureView.setSurfaceTextureListener(new EMExoVideoSurfaceTextureListener());
+        exoVideoTextureView.setSurfaceTextureListener(new videoSurfaceTextureListener());
         exoVideoTextureView.setOnSizeChangeListener(this);
 
 
@@ -487,7 +485,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
         Log.d(TAG, "onVideoSurfaceSizeChange(" + width + ", " + height + ")");
     }
 
-    private class EMExoVideoSurfaceTextureListener implements TextureView.SurfaceTextureListener {
+    private class videoSurfaceTextureListener implements TextureView.SurfaceTextureListener {
 
         private Surface surface;
 
