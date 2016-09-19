@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Point;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.TextureView;
 
 /**
@@ -58,6 +59,7 @@ public class VideoTextureView extends TextureView {
             // Aspect ratio not set.
             return;
         }
+        Log.d(VideoTextureView.class.getSimpleName(), "oneMeasure("+ widthMeasureSpec +", " +heightMeasureSpec + ")");
 
         int width = getMeasuredWidth();
         int height = getMeasuredHeight();
@@ -74,6 +76,7 @@ public class VideoTextureView extends TextureView {
         } else {
             width = (int) (height * videoAspectRatio);
         }
+        Log.d(VideoTextureView.class.getSimpleName(), "oneMeasure("+ width +", " +height + ")");
 
         super.onMeasure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
         notifyListener(width, height);

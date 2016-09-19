@@ -1,5 +1,8 @@
 package co.klar.android.exoplayerwrapper.util;
 
+import android.content.Context;
+import android.content.res.Configuration;
+import android.support.annotation.NonNull;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -28,5 +31,9 @@ public class ViewGroupUtils {
         removeView(currentView);
         removeView(newView);
         parent.addView(newView, index);
+    }
+
+    public static boolean isLandscape(@NonNull Context context){
+        return context.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
     }
 }

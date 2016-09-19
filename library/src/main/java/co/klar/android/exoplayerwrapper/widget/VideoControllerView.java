@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
@@ -16,8 +17,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.MediaController;
 import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
@@ -79,12 +82,12 @@ public class VideoControllerView extends FrameLayout {
     private View.OnClickListener mNextListener, mPrevListener;
     StringBuilder               mFormatBuilder;
     Formatter                   mFormatter;
-    private ImageButton         mPauseButton;
-    private ImageButton         mFfwdButton;
-    private ImageButton         mRewButton;
-    private ImageButton         mNextButton;
-    private ImageButton         mPrevButton;
-    private ImageButton         mFullscreenButton;
+    private ImageView           mPauseButton;
+    private ImageView           mFfwdButton;
+    private ImageView           mRewButton;
+    private ImageView           mNextButton;
+    private ImageView           mPrevButton;
+    private ImageView           mFullscreenButton;
     private Handler             mHandler = new MessageHandler(this);
 
     @Deprecated
@@ -162,19 +165,19 @@ public class VideoControllerView extends FrameLayout {
     }
 
     private void initControllerView(View v) {
-        mPauseButton = (ImageButton) v.findViewById(R.id.pause);
+        mPauseButton = (ImageView) v.findViewById(R.id.pause);
         if (mPauseButton != null) {
             mPauseButton.requestFocus();
             mPauseButton.setOnClickListener(mPauseListener);
         }
 
-        mFullscreenButton = (ImageButton) v.findViewById(R.id.fullscreen);
+        mFullscreenButton = (ImageView) v.findViewById(R.id.fullscreen);
         if (mFullscreenButton != null) {
             mFullscreenButton.requestFocus();
             mFullscreenButton.setOnClickListener(mFullscreenListener);
         }
 
-        mFfwdButton = (ImageButton) v.findViewById(R.id.ffwd);
+        mFfwdButton = (ImageView) v.findViewById(R.id.ffwd);
         if (mFfwdButton != null) {
             mFfwdButton.setOnClickListener(mFfwdListener);
             if (!mFromXml) {
@@ -182,7 +185,7 @@ public class VideoControllerView extends FrameLayout {
             }
         }
 
-        mRewButton = (ImageButton) v.findViewById(R.id.rew);
+        mRewButton = (ImageView) v.findViewById(R.id.rew);
         if (mRewButton != null) {
             mRewButton.setOnClickListener(mRewListener);
             if (!mFromXml) {
@@ -191,11 +194,11 @@ public class VideoControllerView extends FrameLayout {
         }
 
         // By default these are hidden. They will be enabled when setPrevNextListeners() is called
-        mNextButton = (ImageButton) v.findViewById(R.id.next);
+        mNextButton = (ImageView) v.findViewById(R.id.next);
         if (mNextButton != null && !mFromXml && !mListenersSet) {
             mNextButton.setVisibility(View.GONE);
         }
-        mPrevButton = (ImageButton) v.findViewById(R.id.prev);
+        mPrevButton = (ImageView) v.findViewById(R.id.prev);
         if (mPrevButton != null && !mFromXml && !mListenersSet) {
             mPrevButton.setVisibility(View.GONE);
         }
@@ -208,6 +211,14 @@ public class VideoControllerView extends FrameLayout {
             }
             mProgress.setMax(1000);
         }
+
+        v.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //TODO check
+                hide();
+            }
+        });
 
         mEndTime = (TextView) v.findViewById(R.id.time);
         mCurrentTime = (TextView) v.findViewById(R.id.time_current);
@@ -453,19 +464,42 @@ public class VideoControllerView extends FrameLayout {
     }
 
     public void updateFullScreen() {
-        if (mRoot == null || mFullscreenButton == null || mPlayer == null) {
+        if (mRoot == null || mFullscreenButton == null || mPlayer == null || hostActivity == null) {
             return;
         }
-//        TintResources tintResources = new TintResources(TintContextWrapper.wrap(hostActivity), getResources());
+        View decorView = hostActivity.getWindow().getDecorView();
 
+        if (decorView == null) {
+            return;
+        }
         if (isFullscreen()) {
-//            mFullscreenButton.setImageDrawable(tintResources.getDrawable(R.drawable.ic_fullscreen_exit));
+            decorView.setSystemUiVisibility(getFullscreenUiFlags());
             mFullscreenButton.setImageResource(R.drawable.ic_fullscreen_exit);
         }
         else {
+            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
             mFullscreenButton.setImageResource(R.drawable.ic_fullscreen);
-//            mFullscreenButton.setImageDrawable(tintResources.getDrawable(R.drawable.ic_fullscreen));
         }
+    }
+
+    /**
+     * Determines the appropriate fullscreen flags based on the
+     * systems API version.
+     *
+     * @return The appropriate decor view flags to enter fullscreen mode when supported
+     */
+    private int getFullscreenUiFlags() {
+        int flags = View.SYSTEM_UI_FLAG_LOW_PROFILE | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            flags |= View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            ;
+        }
+        return flags;
     }
 
     private void doPauseResume() {
@@ -492,12 +526,9 @@ public class VideoControllerView extends FrameLayout {
             hostActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         }
         Timber.d("onClickFullscreen isFullScreen(): " + isFullscreen());
-        doToggleFullscreen();
-    }
-
-    private void doToggleFullscreen(){
         updateFullScreen();
     }
+
 
     @Override
     protected void onConfigurationChanged(Configuration newConfig) {
@@ -510,12 +541,11 @@ public class VideoControllerView extends FrameLayout {
             return;
         }
         Timber.d("onConfigurationChanged isFullScreen(): " + isFullscreen());
-        doToggleFullscreen();
+        updateFullScreen();
     }
 
     private boolean isFullscreen(){
         return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-
     }
 
     // There are two scenarios that can trigger the seekbar listener to trigger:
@@ -655,18 +685,6 @@ public class VideoControllerView extends FrameLayout {
                 mPrevButton.setVisibility(View.VISIBLE);
             }
         }
-    }
-
-    public interface MediaPlayerControl extends MediaController.MediaPlayerControl{
-        boolean isFullScreen();
-        void    toggleFullScreen();
-
-        /**
-         * Get the audio session id for the player used by this VideoView. This can be used to
-         * apply audio effects to the audio track of a video.
-         * @return The audio session, or 0 if there was an error.
-         */
-        int     getAudioSessionId();
     }
 
     private static class MessageHandler extends Handler {

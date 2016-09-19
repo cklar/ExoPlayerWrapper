@@ -1,29 +1,21 @@
 package co.klar.android.exoplayerwrapper.demo;
 
-import android.annotation.TargetApi;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.NavUtils;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
-import android.widget.Toast;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
-import co.klar.android.exoplayerwrapper.demo.R;
 import co.klar.android.exoplayerwrapper.SimpleVideoPlayer;
 import co.klar.android.exoplayerwrapper.Video;
+import co.klar.android.exoplayerwrapper.util.ViewGroupUtils;
 
 
 public class PlayerActivity extends AppCompatActivity {
@@ -79,6 +71,7 @@ public class PlayerActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         simpleVideoPlayer.onResume();
+        actionbarSwitch();
     }
 
     @Override
@@ -96,53 +89,29 @@ public class PlayerActivity extends AppCompatActivity {
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         Log.d(TAG, newConfig.toString());
-        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            setUiFlags(true);
+        actionbarSwitch();
 
-        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT){
-            setUiFlags(false);
 
-        }
     }
 
     /**
      * Applies the correct flags to the windows decor view to enter
      * or exit fullscreen mode
      *
-     * @param fullscreen True if entering fullscreen mode
      */
-    private void setUiFlags(boolean fullscreen) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            View decorView = getWindow().getDecorView();
-            if (decorView != null) {
-                decorView.setSystemUiVisibility(fullscreen ? getFullscreenUiFlags() : View.SYSTEM_UI_FLAG_VISIBLE);
-            }
+    private void actionbarSwitch() {
+        if(getSupportActionBar() == null){
+            return;
         }
-        if (fullscreen){
+
+        if (ViewGroupUtils.isLandscape(this)) {
             getSupportActionBar().hide();
-        } else {
+        }
+        else {
             getSupportActionBar().show();
         }
     }
 
-    /**
-     * Determines the appropriate fullscreen flags based on the
-     * systems API version.
-     *
-     * @return The appropriate decor view flags to enter fullscreen mode when supported
-     */
-    private int getFullscreenUiFlags() {
-        int flags = View.SYSTEM_UI_FLAG_LOW_PROFILE | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-            flags |= View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    ;
-        }
-        return flags;
-    }
 
 }

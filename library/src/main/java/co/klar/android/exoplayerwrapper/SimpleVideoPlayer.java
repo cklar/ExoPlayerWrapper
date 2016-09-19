@@ -4,12 +4,15 @@ import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.SurfaceTexture;
 import android.net.Uri;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.CaptioningManager;
@@ -43,13 +46,15 @@ import co.klar.android.exoplayerwrapper.extractor.SmoothStreamingRendererBuilder
 import co.klar.android.exoplayerwrapper.util.EventLogger;
 import co.klar.android.exoplayerwrapper.util.ViewGroupUtils;
 import co.klar.android.exoplayerwrapper.widget.VideoControllerView;
+import co.klar.android.exoplayerwrapper.widget.VideoTextureView;
+
 
 /**
  * Created by cklar on 23.09.15.
  */
 public class SimpleVideoPlayer implements SurfaceHolder.Callback,
         ExoPlayerWrapper.Listener, ExoPlayerWrapper.CaptionListener,
-        ExoPlayerWrapper.Id3MetadataListener, AudioCapabilitiesReceiver.Listener {
+        ExoPlayerWrapper.Id3MetadataListener, AudioCapabilitiesReceiver.Listener, VideoTextureView.OnSizeChangeListener {
 
 
     private static final String TAG = "SimpleVideoPlayer";
@@ -68,8 +73,9 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
     private EventLogger eventLogger;
     private VideoControllerView mediaController;
     private View shutterView;
-    private AspectRatioFrameLayout videoFrame;
-    private SurfaceView surfaceView;
+    private FrameLayout videoFrame;
+//    private SurfaceView surfaceView;
+    private VideoTextureView exoVideoTextureView;
     private SubtitleLayout subtitleLayout;
 
     private ExoPlayerWrapper wrapper;
@@ -133,15 +139,41 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
 
         shutterView = root.findViewById(R.id.shutter);
 
-        videoFrame = (AspectRatioFrameLayout) root.findViewById(R.id.video_frame);
-        surfaceView = (SurfaceView) root.findViewById(R.id.surface_view);
-        surfaceView.getHolder().addCallback(this);
+        videoFrame = (FrameLayout) root.findViewById(R.id.video_frame);
+//        surfaceView = (SurfaceView) root.findViewById(R.id.surface_view);
+        exoVideoTextureView = (VideoTextureView) root.findViewById(R.id.texture_view);
+//        surfaceView.getHolder().addCallback(this);
 
         subtitleLayout = (SubtitleLayout) root.findViewById(R.id.subtitles);
 
         mediaController = new VideoControllerView(activity, false);
         mediaController.setAnchorView(root);
 
+        exoVideoTextureView.setSurfaceTextureListener(new EMExoVideoSurfaceTextureListener());
+        exoVideoTextureView.setOnSizeChangeListener(this);
+
+
+        videoFrame.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d(TAG, "onClick videoFrame" + View.GONE);
+            }
+        });
+        root.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
+            @Override
+            public void onSystemUiVisibilityChange(int visibility) {
+//                Log.d(TAG, "onCSystemUiVisibilityChange root: " + visibility); TODO fix detection of navbar
+                if((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0)
+                {
+                    toggleControlsVisibility();
+                    Log.d(TAG, "onCo open" );
+                }else if(visibility == 7){
+                    toggleControlsVisibility();
+                    Log.d(TAG, "onCo close" );
+
+                }
+            }
+        });
 
         CookieHandler currentHandler = CookieHandler.getDefault();
         if (currentHandler != defaultCookieManager) {
@@ -227,7 +259,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
         if (wrapper == null) {
             createNewWrapper();
         }
-        wrapper.setSurface(surfaceView.getHolder().getSurface());
+//        wrapper.setSurface(surfaceView.getHolder().getSurface());
         wrapper.setPlayWhenReady(playWhenReady);
     }
 
@@ -259,7 +291,7 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
             wrapper.prepare();
             playerNeedsPrepare = false;
         }
-        wrapper.setSurface(surfaceView.getHolder().getSurface());
+//        wrapper.setSurface(surfaceView.getHolder().getSurface());
         wrapper.setPlayWhenReady(playWhenReady);
 
     }
@@ -347,10 +379,13 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
     @Override
     public void onVideoSizeChanged(int width, int height, int unappliedRotationDegrees,
                                    float pixelWidthHeightRatio) {
+        float videoAspectRatio = height == 0 ? 1 : (width * pixelWidthHeightRatio) / height;
+        exoVideoTextureView.setAspectRatio(videoAspectRatio);
+
         shutterView.setVisibility(View.GONE);
         if (autoAspectRatio) {
-            videoFrame.setAspectRatio(
-                    height == 0 ? 1 : (width * pixelWidthHeightRatio) / height);
+//            videoFrame.setAspectRatio(
+//                    height == 0 ? 1 : (width * pixelWidthHeightRatio) / height);
         }
     }
 
@@ -444,6 +479,48 @@ public class SimpleVideoPlayer implements SurfaceHolder.Callback,
         CaptioningManager captioningManager =
                 (CaptioningManager) activity.getSystemService(Context.CAPTIONING_SERVICE);
         return CaptionStyleCompat.createFromCaptionStyle(captioningManager.getUserStyle());
+    }
+
+    @Override
+    public void onVideoSurfaceSizeChange(int width, int height) {
+//        Update Shutters
+        Log.d(TAG, "onVideoSurfaceSizeChange(" + width + ", " + height + ")");
+    }
+
+    private class EMExoVideoSurfaceTextureListener implements TextureView.SurfaceTextureListener {
+
+        private Surface surface;
+
+        @Override
+        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
+            if (wrapper != null) {
+                surface = new Surface(surfaceTexture);
+                wrapper.setSurface(surface);
+                if (autoplay) {
+                    wrapper.setPlayWhenReady(true);
+                }
+            }
+        }
+
+        @Override
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
+            // Purposefully left blank
+        }
+
+        @Override
+        public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+            surface.release();
+            if (wrapper != null) {
+                wrapper.blockingClearSurface();
+            }
+
+            return true;
+        }
+
+        @Override
+        public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+            // Purposefully left blank
+        }
     }
 
 }
